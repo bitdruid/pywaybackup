@@ -7,22 +7,6 @@ from pprint import pprint
 import time
 import pathlib
 
-def retry(ExceptionToCheck, tries=4, delay=3, backoff=2):
-    def deco_retry(f):
-        def f_retry(*args, **kwargs):
-            mtries, mdelay = tries, delay
-            while mtries > 1:
-                try:
-                    return f(*args, **kwargs)
-                except ExceptionToCheck as e:
-                    #print(f"{e}, Retrying in {mdelay} seconds...")
-                    time.sleep(mdelay)
-                    mtries -= 1
-                    mdelay *= backoff
-            return f(*args, **kwargs)
-        return f_retry  # true decorator
-    return deco_retry
-
 def print_result(result_list):
     print("")
     if not result_list:
@@ -40,7 +24,9 @@ def query_list(url: str, range: int, mode: str):
     else:
         range = ""
     cdxQuery = f"https://web.archive.org/cdx/search/xd?output=json&url=*.{url}/*{range}&fl=timestamp,original&filter=!statuscode:200"
-    cdxResult_json = requests.get(cdxQuery).json()[1:] # first line is fieldlist, so remove it [timestamp, original]
+    cdxResult = requests.get(cdxQuery)
+    if cdxResult.status_code != 200: print(f"\n-----> ERROR: could not query snapshots, status code: {cdxResult.status_code}"); exit()
+    cdxResult_json = cdxResult.json()[1:] # first line is fieldlist, so remove it [timestamp, original
     cdxResult_list = [{"timestamp": snapshot[0], "url": snapshot[1]} for snapshot in cdxResult_json]
     if mode == "current":
         cdxResult_list = sorted(cdxResult_list, key=lambda k: k['timestamp'], reverse=True)
@@ -135,7 +121,7 @@ def remove_empty_folders(path, remove_root=True):
 # example download: http://web.archive.org/web/20190815104545id_/https://www.google.com/
 # example url: https://www.google.com/
 # example timestamp: 20190815104545
-def download_url_list(download_list, output, mode):
+def download_url_list(download_list, output, retry, mode):
     """
     Download the latest version of each file snapshot.
     If a file has multiple snapshots, only the latest one will be downloaded.
@@ -154,18 +140,18 @@ def download_url_list(download_list, output, mode):
         download_filepath = os.path.join(download_dir, filename)
         create_dirs(download_dir)
         failed_urls.append(download_url_entry(download_url, download_filepath))
-    failed_urls = [url for url in failed_urls if url]
-    if failed_urls:
-        skip_urls = []
-        print(f"\n-----> {len(failed_urls)} downloads failed")
-        print(f"\n-----> Retrying...")
-        for snapshot in failed_urls:
-            print(f"\n-----> RETRY Snapshot [{failed_urls.index(snapshot) + 1}/{len(failed_urls)}]")
-            skip_urls.append(download_url_entry(download_url, download_filepath))
-        skip_urls = [url for url in skip_urls if url]
-        print(f"\n-----> Fail downloads: {len(skip_urls)}")
-
-    print("\n-----> Success downloads: " + str(len(download_list) - len(failed_urls)))
+    if retry:
+        failed_urls = [url for url in failed_urls if url]
+        while failed_urls and (retry > 0 or retry == None):
+            print(f"\n-----> {len(failed_urls)} downloads failed")
+            print(f"\n-----> Retrying...")
+            for snapshot in failed_urls:
+                print(f"\n-----> RETRY Snapshot [{failed_urls.index(snapshot) + 1}/{len(failed_urls)}]")
+                retry_url=download_url_entry(download_url, download_filepath)
+                if retry_url == bool(1):
+                    failed_urls.remove(snapshot)
+            print(f"\n-----> Fail downloads: {len(failed_urls)}")
+            if retry != None: retry -= 1
     
     # batch_size = len(download_list) // 10
     # batch_list = [download_list[i:i + batch_size] for i in range(0, len(download_list), batch_size)]
@@ -178,6 +164,11 @@ def download_url_list(download_list, output, mode):
     #     thread.join()
 
 def download_url_entry(url, output):
+    """
+    Download a single url.
+    Success: return bool(1)
+    Fail: return url
+    """
     max_retries = 2
     sleep_time = 45
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'}
@@ -187,7 +178,7 @@ def download_url_entry(url, output):
             with open(output, 'wb') as file:
                 file.write(data.content)
             print(f"{url} -> {output}")
-            break
+            return bool(1)
         except requests.exceptions.ConnectionError as e:
             print(f"-----> REFUSED connection ({i+1}/{max_retries}), retrying in {sleep_time} seconds...")
             time.sleep(sleep_time)
