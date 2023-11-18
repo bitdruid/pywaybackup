@@ -1,6 +1,6 @@
 # archive wayback downloader
 
-![Version](https://img.shields.io/badge/Version-0.2.5-blue)
+![Version](https://img.shields.io/badge/Version-0.2.6-blue)
 ![Release](https://img.shields.io/badge/Release-alpha-red)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
