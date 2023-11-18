@@ -1,7 +1,7 @@
 import pywaybackup.archive as archive 
 import argparse
 import os
-__version__ = "0.2.5"
+__version__ = "0.2.6"
 
 def main():
     parser = argparse.ArgumentParser(description='Download from wayback machine (archive.org)')
@@ -16,7 +16,8 @@ def main():
     optional.add_argument('-r', '--range', type=int, help='Range in years to search')
     optional.add_argument('-o', '--output', type=str, help='Output folder')
     special = parser.add_argument_group('special')
-    special.add_argument('-m', '--mimetype', action='store_true', help='Guess mimetype for each file and add file extension if not present')
+    #special.add_argument('--detect-filetype', action='store_true', help='If a file has no extension, try to detect the filetype')
+    special.add_argument('--retry-failed', nargs='?', const=True, type=int, help='Retry failed downloads (opt tries as int, else infinite)')
 
     args = parser.parse_args()
     if args.current:
@@ -30,7 +31,7 @@ def main():
     if args.list:
         archive.print_result(cdxResult_list)
     if not args.list:
-        archive.download_url_list(cdxResult_list, args.output, mode)
+        archive.download_url_list(cdxResult_list, args.output, args.retry_failed, mode)
         archive.remove_empty_folders(args.output)
 
 if __name__ == "__main__":
