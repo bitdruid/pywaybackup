@@ -121,16 +121,15 @@ def remove_empty_folders(path, remove_root=True):
 # example download: http://web.archive.org/web/20190815104545id_/https://www.google.com/
 # example url: https://www.google.com/
 # example timestamp: 20190815104545
-def download_url_list(download_list, output, retry, mode):
+def download_url_list(cdxResult_list, output, retry, mode):
     """
-    Download the latest version of each file snapshot.
-    If a file has multiple snapshots, only the latest one will be downloaded.
+    Download a list of urls in format: [{"timestamp": "20190815104545", "url": "https://www.google.com/"}]
     """
-    #def download_batch(download_list):
+    #def download_batch(cdxResult_list):
     print("\nDownloading latest snapshots of each file...")
     failed_urls = []
-    for snapshot in download_list:
-        print(f"\n-----> Snapshot [{download_list.index(snapshot) + 1}/{len(download_list)}]")
+    download_list = []
+    for snapshot in cdxResult_list:
         timestamp, url = snapshot["timestamp"], snapshot["url"]
         type = determine_url_filetype(url)
         download_url = f"http://web.archive.org/web/{timestamp}{type}/{url}"
@@ -138,20 +137,16 @@ def download_url_list(download_list, output, retry, mode):
         if mode == "current": download_dir = os.path.join(output, domain, subdir)
         if mode == "full": download_dir = os.path.join(output, domain, timestamp, subdir)
         download_filepath = os.path.join(download_dir, filename)
-        create_dirs(download_dir)
-        failed_urls.append(download_url_entry(download_url, download_filepath))
-    if retry:
-        failed_urls = [url for url in failed_urls if url]
-        while failed_urls and (retry > 0 or retry == None):
-            print(f"\n-----> {len(failed_urls)} downloads failed")
-            print(f"\n-----> Retrying...")
-            for snapshot in failed_urls:
-                print(f"\n-----> RETRY Snapshot [{failed_urls.index(snapshot) + 1}/{len(failed_urls)}]")
-                retry_url=download_url_entry(download_url, download_filepath)
-                if retry_url == bool(1):
-                    failed_urls.remove(snapshot)
-            print(f"\n-----> Fail downloads: {len(failed_urls)}")
-            if retry != None: retry -= 1
+        download_list.append({"url": download_url, "filename": filename, "filepath": download_dir})
+    # download urls
+    for download_entry in download_list:
+        print(f"\n-----> Snapshot [{download_list.index(download_entry) + 1}/{len(download_list)}]")
+        download_url, download_filename, download_filepath = download_entry["url"], download_entry["filename"], download_entry["filepath"]
+        download_status=download_url_entry(download_url, download_filename, download_filepath)
+        if download_status != bool(1): failed_urls.append({"url": download_url, "filename": download_filename, "filepath": download_filepath})
+    if retry > 0 or retry is True:
+        print(f"\n-----> Fail downloads: {len(failed_urls)}")
+        download_retry(failed_urls, retry)
     
     # batch_size = len(download_list) // 10
     # batch_list = [download_list[i:i + batch_size] for i in range(0, len(download_list), batch_size)]
@@ -163,28 +158,54 @@ def download_url_list(download_list, output, retry, mode):
     # for thread in threads:
     #     thread.join()
 
-def download_url_entry(url, output):
+def download_retry(failed_urls, retry):
+    """
+    Retry failed downloads.
+    failed_urls: [{"url": download_url, "filename": download_filename, "filepath": download_filepath}]
+    retry: int or None
+    """
+    attempt = 1
+    max_attempt = retry if retry is not True else "no-limit"
+    while failed_urls and (attempt <= retry or retry is True):
+        print(f"\n-----> Retrying...")
+        retry_urls = []
+        for failed_entry in failed_urls:
+            download_url, download_filename, download_filepath = failed_entry["url"], failed_entry["filename"], failed_entry["filepath"]
+            print(f"\n-----> RETRY attempt: [{attempt}/{max_attempt}] Snapshot [{failed_urls.index(failed_entry) + 1}/{len(failed_urls)}]")
+            retry_status=download_url_entry(download_url, download_filename, download_filepath)
+            if retry_status != bool(1):
+                retry_urls.append({"url": download_url, "filename": download_filename, "filepath": download_filepath})
+        failed_urls = retry_urls
+        print(f"\n-----> Fail downloads: {len(failed_urls)}")
+        if retry != None: attempt += 1
+
+def download_url_entry(url, filename, filepath):
     """
     Download a single url.
     Success: return bool(1)
     Fail: return url
     """
+    # create output dirs
+    create_dirs(filepath)
+    output = os.path.join(filepath, filename)
     max_retries = 2
-    sleep_time = 45
+    sleep_time = 40
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'}
+    # download url
     for i in range(max_retries):
         try:
             data = requests.get(url, headers=headers)
             with open(output, 'wb') as file:
                 file.write(data.content)
-            print(f"{url} -> {output}")
+            print(f"SUCCESS -> {url}")
+            print(f"        -> {output}")
             return bool(1)
         except requests.exceptions.ConnectionError as e:
-            print(f"-----> REFUSED connection ({i+1}/{max_retries}), retrying in {sleep_time} seconds...")
+            print(f"REFUSED -> ({i+1}/{max_retries}), reconnect in {sleep_time} seconds...")
             time.sleep(sleep_time)
     else:
-        print(f"FAILED download, append to failed_urls: {url}")
-        return url
+        print(f"FAILED  -> download, append to failed_urls: {url}")
+        return bool(0)
 
 
 

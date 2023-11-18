@@ -17,7 +17,7 @@ def main():
     optional.add_argument('-o', '--output', type=str, help='Output folder')
     special = parser.add_argument_group('special')
     #special.add_argument('--detect-filetype', action='store_true', help='If a file has no extension, try to detect the filetype')
-    special.add_argument('--retry-failed', type=int, help='Retry failed downloads (opt tries as int)')
+    special.add_argument('--retry-failed', nargs='?', const=True, type=int, help='Retry failed downloads (opt tries as int, else infinite)')
 
     args = parser.parse_args()
     if args.current:
