@@ -1,7 +1,7 @@
 
 from setuptools import setup, find_packages
 
-VERSION = '0.2.5'
+VERSION = '0.2.6'
 DESCRIPTION = 'Download snapshots from the Wayback Machine'
 
 import pkg_resources

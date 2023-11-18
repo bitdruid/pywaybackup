@@ -1,7 +1,7 @@
 import pywaybackup.archive as archive 
 import argparse
 import os
-__version__ = "0.2.5"
+__version__ = "0.2.6"
 
 def main():
     parser = argparse.ArgumentParser(description='Download from wayback machine (archive.org)')
