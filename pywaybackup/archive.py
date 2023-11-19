@@ -1,8 +1,9 @@
-import threading
+#import threading
+from pathlib import Path
 import requests
 import datetime
 import os
-#import magic
+import magic
 from pprint import pprint
 import time
 import pathlib
@@ -144,7 +145,7 @@ def download_url_list(cdxResult_list, output, retry, mode):
         download_url, download_filename, download_filepath = download_entry["url"], download_entry["filename"], download_entry["filepath"]
         download_status=download_url_entry(download_url, download_filename, download_filepath)
         if download_status != bool(1): failed_urls.append({"url": download_url, "filename": download_filename, "filepath": download_filepath})
-    if retry > 0 or retry is True:
+    if isinstance(retry, int) and retry > 0 or isinstance(retry, bool) and retry is True:
         print(f"\n-----> Fail downloads: {len(failed_urls)}")
         download_retry(failed_urls, retry)
     
@@ -213,7 +214,18 @@ def download_url_entry(url, filename, filepath):
 
 # scan output folder and guess mimetype for each file
 # if add file extension if not present
-# def guess_mimetype(filepath):
-#     print("")
-#     print("Guessing mimetypes for unknown files...")
-    
+def detect_filetype(filepath):
+    print("\nDetecting filetypes...")
+    path = Path(filepath)
+    if not path.is_dir():
+        print(f"\n-----> ERROR: {filepath} is not a directory"); return
+    for file_path in path.rglob("*"):
+        if file_path.is_file():
+            file_extension = file_path.suffix
+            if not file_extension:
+                mime_type = magic.from_file(str(file_path), mime=True)
+                file_extension = mime_type.split("/")[-1]
+                new_file_path = file_path.with_suffix('.' + file_extension)
+                file_path.rename(new_file_path)
+                print(f"NO EXT -> {file_path}")
+                print(f"   NEW -> {new_file_path}")

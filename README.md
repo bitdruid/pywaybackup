@@ -29,10 +29,8 @@ Timeout seems to be about 2.5 minutes per 20 downloads.
 
 1. Clone the repository <br>
    ```git clone https://github.com/bitdruid/waybackup.git```
-2. Install requirements <br>
-   ```pip install -r requirements.txt```
-3. Run the script <br>
-   ```python waybackup.py -h```
+2. Install <br>
+   ```python setup.py install```
 
 ## Usage
 
