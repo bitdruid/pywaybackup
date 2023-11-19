@@ -2,6 +2,7 @@
 
 ![Version](https://img.shields.io/badge/Version-0.2.6-blue)
 ![Release](https://img.shields.io/badge/Release-alpha-red)
+![Python Version](https://img.shields.io/badge/Python-3.6-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Downloading archived web pages from the [Wayback Machine](https://archive.org/web/).
